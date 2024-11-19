@@ -1,0 +1,30 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: scheduler-executor
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: executor-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.scheduler.common.*"
+
+logging:
+  level:
+    root: INFO
+    com.scheduler: DEBUG
+    org.springframework.kafka: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always

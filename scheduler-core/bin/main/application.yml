@@ -1,0 +1,54 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: scheduler-core
+  datasource:
+    url: jdbc:h2:mem:schedulerdb
+    username: sa
+    password: password
+    driver-class-name: org.h2.Driver
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "com.scheduler.common.*"
+
+logging:
+  level:
+    root: INFO
+    com.scheduler: DEBUG
+    org.springframework.web: INFO
+    org.hibernate: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
