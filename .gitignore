@@ -2,3 +2,4 @@
 build
 gradle
 *.hprof
+task-scheduler/target/

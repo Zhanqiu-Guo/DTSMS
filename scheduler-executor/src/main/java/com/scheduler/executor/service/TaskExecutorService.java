@@ -1,7 +1,8 @@
 package com.scheduler.executor.service;
 
+import com.scheduler.common.dto.TaskExecutionRequest;
 import com.scheduler.common.event.TaskEvent;
-import com.scheduler.common.model.TaskExecution;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -22,17 +23,17 @@ public class TaskExecutorService {
     public void executeTask(TaskEvent event) {
         log.info("Executing task: {}", event.getTaskId());
         
-        TaskExecution execution = new TaskExecution();
+        TaskExecutionRequest execution = new TaskExecutionRequest();
         execution.setTaskId(event.getTaskId());
         execution.setExecutorId(executorId);
         execution.setStartTime(LocalDateTime.now());
-        execution.setStatus(TaskExecution.ExecutionStatus.STARTED);
+        execution.setStatus(TaskExecutionRequest.ExecutionStatus.STARTED);
         
         try {
             // Simulate task execution
             Thread.sleep(1000);
             
-            execution.setStatus(TaskExecution.ExecutionStatus.COMPLETED);
+            execution.setStatus(TaskExecutionRequest.ExecutionStatus.COMPLETED);
             execution.setEndTime(LocalDateTime.now());
             
             TaskEvent completionEvent = new TaskEvent();
@@ -44,7 +45,7 @@ public class TaskExecutorService {
         } catch (Exception e) {
             log.error("Task execution failed", e);
             
-            execution.setStatus(TaskExecution.ExecutionStatus.FAILED);
+            execution.setStatus(TaskExecutionRequest.ExecutionStatus.FAILED);
             execution.setErrorMessage(e.getMessage());
             execution.setEndTime(LocalDateTime.now());
             

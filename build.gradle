@@ -1,13 +1,20 @@
-// Root level build.gradle
 plugins {
     id 'org.springframework.boot' version '3.2.0' apply false
     id 'io.spring.dependency-management' version '1.1.4' apply false
     id 'java'
 }
 
+ext {
+    set('springCloudVersion', "2023.0.0")
+}
+
 allprojects {
     group = 'com.scheduler'
     version = '0.1.0'
+    
+    repositories {
+        mavenCentral()
+    }
 }
 
 subprojects {
@@ -18,21 +25,22 @@ subprojects {
     sourceCompatibility = '17'
     targetCompatibility = '17'
 
-    repositories {
-        mavenCentral()
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        }
     }
 
     dependencies {
         implementation 'org.springframework.boot:spring-boot-starter-web'
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-        implementation 'org.springframework.kafka:spring-kafka'
         implementation 'org.springframework.boot:spring-boot-starter-actuator'
         implementation 'io.micrometer:micrometer-registry-prometheus'
-        implementation 'io.micrometer:micrometer-core'
+        implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+        implementation 'org.springframework.retry:spring-retry'
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
         runtimeOnly 'com.h2database:h2'
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
     }
 
     test {
@@ -47,14 +55,18 @@ project(':scheduler-common') {
     jar {
         enabled = true
     }
+    
+    dependencies {
+        implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+        implementation 'com.fasterxml.jackson.core:jackson-annotations'
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+    }
 }
 
 project(':scheduler-core') {
     dependencies {
         implementation project(':scheduler-common')
-    }
-    bootJar {
-        mainClass = 'com.scheduler.core.SchedulerCoreApplication'
     }
 }
 
@@ -62,16 +74,10 @@ project(':scheduler-executor') {
     dependencies {
         implementation project(':scheduler-common')
     }
-    bootJar {
-        mainClass = 'com.scheduler.executor.SchedulerExecutorApplication'
-    }
 }
 
 project(':scheduler-monitor') {
     dependencies {
         implementation project(':scheduler-common')
-    }
-    bootJar {
-        mainClass = 'com.scheduler.monitor.SchedulerMonitorApplication'
     }
 }

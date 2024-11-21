@@ -1,33 +1,27 @@
 package com.scheduler.core.metrics;
 
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.atomic.AtomicInteger;
 
-@Component
+@Slf4j
 public class TaskMetrics {
     private final Counter taskCreatedCounter;
     private final Counter taskCompletedCounter;
     private final Counter taskFailedCounter;
     private final Timer taskExecutionTimer;
+    private final AtomicInteger activeTasksGauge;
 
     public TaskMetrics(MeterRegistry registry) {
-        this.taskCreatedCounter = Counter.builder("scheduler.tasks.created")
-            .description("Number of tasks created")
-            .register(registry);
-            
-        this.taskCompletedCounter = Counter.builder("scheduler.tasks.completed")
-            .description("Number of tasks completed")
-            .register(registry);
-            
-        this.taskFailedCounter = Counter.builder("scheduler.tasks.failed")
-            .description("Number of tasks failed")
-            .register(registry);
-            
-        this.taskExecutionTimer = Timer.builder("scheduler.tasks.execution.time")
-            .description("Task execution time")
-            .register(registry);
+        this.taskCreatedCounter = registry.counter("scheduler.tasks.created");
+        this.taskCompletedCounter = registry.counter("scheduler.tasks.completed");
+        this.taskFailedCounter = registry.counter("scheduler.tasks.failed");
+        this.taskExecutionTimer = registry.timer("scheduler.tasks.execution.time");
+        this.activeTasksGauge = registry.gauge("scheduler.tasks.active", 
+            new AtomicInteger(0));
     }
 
     public void incrementTasksCreated() {
@@ -36,10 +30,16 @@ public class TaskMetrics {
 
     public void incrementTasksCompleted() {
         taskCompletedCounter.increment();
+        activeTasksGauge.decrementAndGet();
     }
 
     public void incrementTasksFailed() {
         taskFailedCounter.increment();
+        activeTasksGauge.decrementAndGet();
+    }
+
+    public void incrementActiveTasks() {
+        activeTasksGauge.incrementAndGet();
     }
 
     public Timer getTaskExecutionTimer() {

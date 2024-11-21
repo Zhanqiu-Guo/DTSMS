@@ -1,4 +1,3 @@
-
 package com.scheduler.common.model;
 
 import jakarta.persistence.*;
@@ -14,27 +13,21 @@ public class Task {
     private Long id;
     
     private String name;
-    private String cronExpression;
     private String handlerClass;
+    private String parameters;
     
     @Enumerated(EnumType.STRING)
     private TaskStatus status;
     
-    @Column(columnDefinition = "text")
-    private String parameters;
+    private Integer retryCount = 0;
+    private Integer maxRetries = 3;
+    private String errorMessage;
     
     private LocalDateTime createdAt;
     private LocalDateTime lastExecutionTime;
     private LocalDateTime nextExecutionTime;
-    private Integer retryCount;
-    private Integer maxRetries;
-    
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
     
     public enum TaskStatus {
-        CREATED, SCHEDULED, RUNNING, COMPLETED, FAILED, PAUSED
+        CREATED, RUNNING, COMPLETED, FAILED
     }
 }
