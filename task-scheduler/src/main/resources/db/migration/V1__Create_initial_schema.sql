@@ -18,6 +18,8 @@ CREATE TABLE tasks (
     completed_time TIMESTAMP,
     user_id BIGINT REFERENCES users(id),
     dependent_task_id BIGINT REFERENCES tasks(id),
+    threads_needed INT NOT NULL,
+    command TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

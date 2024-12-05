@@ -25,9 +25,9 @@ management:
       prometheus:
         enabled: true
 
-executor:
-  service:
-    url: http://localhost:8081
+# executor:
+#   service:
+#     url: http://localhost:8081
 
 async:
   core-pool-size: 5

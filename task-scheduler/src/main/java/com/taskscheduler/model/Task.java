@@ -20,6 +20,9 @@ public class Task {
 
     @Column(nullable = false)
     private int threadsNeeded;
+
+    @Column(nullable = false)
+    private String command;
     
     private String description;
     

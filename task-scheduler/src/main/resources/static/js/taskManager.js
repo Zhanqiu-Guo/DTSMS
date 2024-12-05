@@ -22,7 +22,9 @@ class TaskManager {
     async createTask() {
         const taskData = {
             name: document.getElementById('taskName').value,
-            priority: document.getElementById('taskPriority').value
+            priority: document.getElementById('taskPriority').value,
+            threadsNeeded: parseInt(document.getElementById('taskThreadsNeeded').value, 10),
+            command: document.getElementById('taskCommand').value
         };
 
         try {
@@ -49,7 +51,7 @@ class TaskManager {
         const taskElement = document.createElement('div');
         taskElement.id = `task-${task.id}`;
         taskElement.className = `task-item p-4 border rounded ${this.getPriorityClass(task.priority)}`;
-        
+
         taskElement.innerHTML = `
             <div class="flex justify-between items-center">
                 <h3 class="font-bold">${task.name}</h3>

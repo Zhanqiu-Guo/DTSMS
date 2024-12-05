@@ -70,11 +70,11 @@ project(':scheduler-core') {
     }
 }
 
-project(':scheduler-executor') {
-    dependencies {
-        implementation project(':scheduler-common')
-    }
-}
+// project(':scheduler-executor') {
+//     dependencies {
+//         implementation project(':scheduler-common')
+//     }
+// }
 
 project(':scheduler-monitor') {
     dependencies {
