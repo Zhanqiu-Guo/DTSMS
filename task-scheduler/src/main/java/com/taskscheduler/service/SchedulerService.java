@@ -1,19 +1,18 @@
 package com.taskscheduler.service;
 
-import com.taskscheduler.model.Task;
-import com.taskscheduler.repository.TaskRepository;
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.PriorityBlockingQueue;
+
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.concurrent.PriorityBlockingQueue;
-import java.util.Comparator;
+import com.taskscheduler.model.Task;
+import com.taskscheduler.repository.TaskRepository;
 
 @Service
-@RequiredArgsConstructor
 public class SchedulerService {
     private final TaskService taskService;
     private final TaskRepository taskRepository;
@@ -25,6 +24,19 @@ public class SchedulerService {
             .<Task>comparingInt(task -> task.getPriority().ordinal())
             .thenComparing(Task::getScheduledTime)
     );
+
+    // Assume total thread available is num of cpu cores, so that to achieve the best perf
+    private final int totalThreads = Runtime.getRuntime().availableProcessors();
+    private int availableThreads = totalThreads;
+    // thread lock
+    private final Object threadLock = new Object();
+
+    // Constructor
+    public SchedulerService(TaskService taskService, TaskRepository taskRepository, MetricsService metricsService) {
+        this.taskService = taskService;
+        this.taskRepository = taskRepository;
+        this.metricsService = metricsService;
+    }
 
     @Scheduled(fixedRate = 1000) // Check every second
     @Transactional
@@ -65,6 +77,7 @@ public class SchedulerService {
         }
     }
 
+    //TODO: Check if can be removed
     @Scheduled(cron = "0 0 0 * * *") // Daily at midnight
     @Transactional
     public void archiveOldTasks() {
@@ -83,8 +96,19 @@ public class SchedulerService {
 
     private void processPendingTasks() {
         while (!taskQueue.isEmpty()) {
-            Task task = taskQueue.poll();
-            if (task != null && shouldExecuteTask(task)) {
+            Task task = taskQueue.peek();
+            if (task == null) break;
+
+            synchronized (threadLock) {
+                if (task.getThreadsNeeded() <= availableThreads) {
+                    taskQueue.poll();
+                    availableThreads -= task.getThreadsNeeded();
+                } else {
+                    // Not enough threads for this task, wait
+                    break;
+                }
+            }
+            if (shouldExecuteTask(task)) {
                 taskService.executeTask(task);
             }
         }

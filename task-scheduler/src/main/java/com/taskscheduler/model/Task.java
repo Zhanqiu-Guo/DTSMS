@@ -17,6 +17,9 @@ public class Task {
     
     @Column(nullable = false)
     private String name;
+
+    @Column(nullable = false)
+    private int threadsNeeded;
     
     private String description;
     
@@ -27,6 +30,8 @@ public class Task {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TaskStatus status;
+
+    
     
     private LocalDateTime scheduledTime;
     private LocalDateTime completedTime;

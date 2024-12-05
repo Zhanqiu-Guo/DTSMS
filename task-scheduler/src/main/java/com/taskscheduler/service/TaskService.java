@@ -1,19 +1,18 @@
 package com.taskscheduler.service;
 
-import com.taskscheduler.model.*;
-import com.taskscheduler.websocket.WebSocketService;
-import com.taskscheduler.repository.*;
-import lombok.RequiredArgsConstructor;
-import com.taskscheduler.model.Task;
-import com.taskscheduler.repository.TaskRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+
+import com.taskscheduler.model.Task;
+import com.taskscheduler.repository.TaskRepository;
+import com.taskscheduler.websocket.WebSocketService;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
