@@ -25,11 +25,11 @@ management:
       prometheus:
         enabled: true
 
-executor:
-  service:
-    url: http://localhost:8081
+# executor:
+#   service:
+#     url: http://localhost:8081
 
-async:
-  core-pool-size: 5
-  max-pool-size: 10
-  queue-capacity: 25
+# async:
+#   core-pool-size: 5
+#   max-pool-size: 10
+#   queue-capacity: 25
