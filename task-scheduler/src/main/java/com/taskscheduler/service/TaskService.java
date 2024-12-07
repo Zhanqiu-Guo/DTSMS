@@ -12,6 +12,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.apache.commons.exec.CommandLine;
 
 import com.taskscheduler.model.Task;
 import com.taskscheduler.repository.TaskRepository;
@@ -42,10 +43,10 @@ public class TaskService {
                 taskRepository.save(task);
                 webSocketService.notifyTaskUpdate(task);
                 
-                Pair<Boolean, String> result = executeCode(task.getPythonFilePath());
+                Pair<Boolean, String> result = executeCode(task);
                 
                 if (!result.getFirst()) {
-                    throw new RuntimeException("Python execution failed: " + result.getSecond());
+                    throw new RuntimeException("Execution failed: " + result.getSecond());
                 }
                 
                 task.setStatus(Task.TaskStatus.COMPLETED);
@@ -62,14 +63,19 @@ public class TaskService {
         });
     }
 
-    public Pair<Boolean, String> executeCode(String pythonFilePath) {
+    @Transactional
+    public Pair<Boolean, String> executeCode(Task task) {
         Process process = null;
+
+        CommandLine cmdLine = CommandLine.parse(task.getCommand());
+        String[] args = cmdLine.toStrings();
         
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder("python", pythonFilePath);
+            ProcessBuilder processBuilder = new ProcessBuilder(args);
             processBuilder.redirectErrorStream(true);
             process = processBuilder.start();
             Long pid = process.pid();
+            task.setPid(pid);
             
             BufferedReader reader = new BufferedReader(
                 new InputStreamReader(process.getInputStream())

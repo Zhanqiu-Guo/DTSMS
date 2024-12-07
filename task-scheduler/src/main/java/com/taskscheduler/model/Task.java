@@ -18,8 +18,8 @@ public class Task {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "python_file_path")
-    private String pythonFilePath;
+    @Column(name = "command")
+    private String command;
 
     @Column(name = "threads_needed")
     private int threadsNeeded;
@@ -60,7 +60,8 @@ public class Task {
     
     public Long getId() {return id;}
     public String getName() {return name;}
-    public String getPythonFilePath() {return pythonFilePath;}
+    public Long setPid() {return pid;}
+    public String getCommand() {return command;}
     public int getThreadsNeeded() {return threadsNeeded;}
     public String getArguments() {return arguments;}
     public String getDescription() {return description;}
@@ -75,7 +76,8 @@ public class Task {
     
     public void setId(Long id) {this.id = id;}
     public void setName(String name) {this.name = name;}
-    public void setPythonFilePath(String pythonFilePath) {this.pythonFilePath = pythonFilePath;}
+    public void setPid(Long pid) {this.pid = pid;}
+    public void setCommand(String command) {this.command = command;}
     public void setThreadsNeeded(int threadsNeeded) {this.threadsNeeded = threadsNeeded;}
     public void setArguments(String arguments) {this.arguments = arguments;}
     public void setDescription(String description) {this.description = description;}
