@@ -4,7 +4,7 @@
 run_thread() {
     local thread_id=$1
     echo "Thread $thread_id is running"
-    sleep 10  # Simulate some work
+    sleep 100  # Simulate some work
     echo "Thread $thread_id has finished"
 }
 

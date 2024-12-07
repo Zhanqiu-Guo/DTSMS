@@ -52,7 +52,7 @@ class DashboardMetrics {
 
     updateChart(metrics) {
         const timestamp = new Date().toLocaleTimeString();
-        
+
         this.chart.data.labels.push(timestamp);
         this.chart.data.datasets[0].data.push(metrics.activeTasks);
         this.chart.data.datasets[1].data.push(metrics.cpuUsage);
@@ -63,6 +63,23 @@ class DashboardMetrics {
         }
 
         this.chart.update();
+    }
+    updateActiveTasksTable() {
+        this.activeTasksTable.innerHTML = ''; // Clear existing rows
+
+        this.activeTasks.forEach((task, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="border px-4 py-2">${task.name}</td>
+                <td class="border px-4 py-2">${task.priority}</td>
+                <td class="border px-4 py-2">${task.threadsNeeded}</td>
+                <td class="border px-4 py-2">${task.command}</td>
+                <td class="border px-4 py-2">
+                    <button onclick="taskManager.removeTask(${index})" class="text-red-500 hover:underline">Remove</button>
+                </td>
+            `;
+            this.activeTasksTable.appendChild(row);
+        });
     }
 }
 

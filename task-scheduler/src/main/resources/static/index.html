@@ -40,11 +40,26 @@
                     </button>
                 </form>
             </div>
-
+            
             <!-- Active Tasks Panel -->
             <div class="bg-white p-6 rounded-lg shadow-lg">
                 <h2 class="text-2xl font-bold mb-4">Active Tasks</h2>
-                <div id="activeTasksList" class="space-y-4"></div>
+                <div class="overflow-x-auto">
+                    <table id="activeTasksTable" class="min-w-full border border-gray-300">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="border px-4 py-2 text-left">Task Name</th>
+                                <th class="border px-4 py-2 text-left">Priority</th>
+                                <th class="border px-4 py-2 text-left">Threads Needed</th>
+                                <th class="border px-4 py-2 text-left">Command</th>
+                                <th class="border px-4 py-2 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeTasksBody">
+                            <!-- Rows will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- System Metrics Panel -->
