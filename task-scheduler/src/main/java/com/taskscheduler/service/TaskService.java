@@ -1,10 +1,15 @@
 package com.taskscheduler.service;
 
+import java.io.File;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
 
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,24 +26,26 @@ public class TaskService {
     private final ThreadPoolTaskExecutor taskExecutor;
     private final MetricsService metricsService;
     private final WebSocketService webSocketService;
+    @Lazy 
+    private final SchedulerService schedulerService;
     
     private final ConcurrentHashMap<Long, Thread> runningTasks = new ConcurrentHashMap<>();
 
     @Transactional
     public Task createTask(Task task) {
         validateTask(task);
+        validatePythonFile(task.getPythonFilePath());
+
         task.setStatus(Task.TaskStatus.PENDING);
         task.setScheduledTime(LocalDateTime.now());
         Task savedTask = taskRepository.save(task);
+        schedulerService.scheduleTask(savedTask);
         webSocketService.notifyTaskUpdate(savedTask);
         return savedTask;
     }
 
     @Transactional
     public void executeTask(Task task) {
-        if (!canExecuteTask(task)) {
-            throw new IllegalStateException("Task cannot be executed at this time");
-        }
 
         taskExecutor.execute(() -> {
             Thread currentThread = Thread.currentThread();
@@ -49,8 +56,11 @@ public class TaskService {
                 taskRepository.save(task);
                 webSocketService.notifyTaskUpdate(task);
                 
-                // Simulate task execution
-                processTask(task);
+                Pair<Boolean, String> result = executeCode(task.getPythonFilePath());
+                
+                if (!result.getFirst()) {
+                    throw new RuntimeException("Python execution failed: " + result.getSecond());
+                }
                 
                 task.setStatus(Task.TaskStatus.COMPLETED);
                 task.setCompletedTime(LocalDateTime.now());
@@ -58,14 +68,44 @@ public class TaskService {
                 
                 metricsService.recordTaskCompletion(task);
                 webSocketService.notifyTaskUpdate(task);
-            } catch (InterruptedException e) {
-                handleTaskInterruption(task);
             } catch (Exception e) {
                 handleTaskFailure(task, e);
             } finally {
                 runningTasks.remove(task.getId());
             }
         });
+    }
+
+    public Pair<Boolean, String> executeCode(String pythonFilePath) {
+        Process process = null;
+        
+        try {
+            ProcessBuilder processBuilder = new ProcessBuilder("python", pythonFilePath);
+            processBuilder.redirectErrorStream(true);
+            process = processBuilder.start();
+            
+            BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream())
+            );
+            
+            StringBuilder output = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+            
+            int exitValue = process.waitFor();
+            boolean success = exitValue == 0;
+
+            return Pair.of(success, output.toString());
+            
+        } catch (Exception e) {
+            return Pair.of(false, "Error: " + e.getMessage());
+        } finally {
+            if (process != null) {
+                process.destroy();
+            }
+        }
     }
 
     @Transactional
@@ -84,18 +124,18 @@ public class TaskService {
         return task;
     }
 
-    private void processTask(Task task) throws InterruptedException {
-        // Simulate work with periodic interruption checks
-        int totalSteps = 10;
-        for (int i = 0; i < totalSteps; i++) {
-            if (Thread.interrupted()) {
-                throw new InterruptedException();
-            }
-            // Simulated work
-            Thread.sleep(1000);
-            
-            // Update progress
-            webSocketService.notifyTaskProgress(task.getId(), (i + 1) * 100 / totalSteps);
+    private void validatePythonFile(String pythonFilePath) {
+        if (pythonFilePath == null || pythonFilePath.trim().isEmpty()) {
+            throw new IllegalArgumentException("Python file path is required");
+        }
+
+        File pythonFile = new File(pythonFilePath);
+        if (!pythonFile.exists() || !pythonFile.isFile()) {
+            throw new IllegalArgumentException("Python file does not exist: " + pythonFilePath);
+        }
+        
+        if (!pythonFilePath.endsWith(".py")) {
+            throw new IllegalArgumentException("File must be a Python file (.py)");
         }
     }
 
@@ -131,25 +171,12 @@ public class TaskService {
         webSocketService.notifyTaskUpdate(task);
     }
 
-    private void handleTaskInterruption(Task task) {
-        task.setStatus(Task.TaskStatus.PAUSED);
-        taskRepository.save(task);
-        webSocketService.notifyTaskUpdate(task);
-    }
-
     private void handleTaskFailure(Task task, Exception e) {
         task.setStatus(Task.TaskStatus.FAILED);
         taskRepository.save(task);
         metricsService.recordTaskFailure(task);
         webSocketService.notifyTaskUpdate(task);
         webSocketService.notifyTaskError(task.getId(), e.getMessage());
-    }
-
-    private boolean canExecuteTask(Task task) {
-        if (task.getDependentTask() != null) {
-            return task.getDependentTask().getStatus() == Task.TaskStatus.COMPLETED;
-        }
-        return true;
     }
 
     private void validateTask(Task task) {

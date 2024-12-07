@@ -7,58 +7,83 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 @Table(name = "tasks")
 public class Task {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
+    @Column(name = "python_file_path")
+    private String pythonFilePath;
+
+    @Column(name = "threads_needed")
     private int threadsNeeded;
 
-    @Column(nullable = false)
-    private String command;
+    private String arguments;
     
     private String description;
-    
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private TaskPriority priority;
-    
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private TaskStatus status;
 
-    
-    
-    private LocalDateTime scheduledTime;
-    private LocalDateTime completedTime;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "assigned_user_id")
     private User assignedUser;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dependent_task_id")
     private Task dependentTask;
+
+    @Column(name = "scheduled_time")
+    private LocalDateTime scheduledTime;
+
+    @Column(name = "completed_time")
+    private LocalDateTime completedTime;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
     
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
+    // Default constructor
+    public Task() {}
     
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    public Long getId() {return id;}
+    public String getName() {return name;}
+    public String getPythonFilePath() {return pythonFilePath;}
+    public int getThreadsNeeded() {return threadsNeeded;}
+    public String getArguments() {return arguments;}
+    public String getDescription() {return description;}
+    public TaskPriority getPriority() {return priority;}
+    public TaskStatus getStatus() {return status;}
+    public User getAssignedUser() {return assignedUser;}
+    public Task getDependentTask() {return dependentTask;}
+    public LocalDateTime getScheduledTime() {return scheduledTime;}
+    public LocalDateTime getCompletedTime() {return completedTime;}
+    public LocalDateTime getCreatedAt() {return createdAt;}
+    public LocalDateTime getUpdatedAt() {return updatedAt;}
+    
+    public void setId(Long id) {this.id = id;}
+    public void setName(String name) {this.name = name;}
+    public void setPythonFilePath(String pythonFilePath) {this.pythonFilePath = pythonFilePath;}
+    public void setThreadsNeeded(int threadsNeeded) {this.threadsNeeded = threadsNeeded;}
+    public void setArguments(String arguments) {this.arguments = arguments;}
+    public void setDescription(String description) {this.description = description;}
+    public void setPriority(TaskPriority priority) {this.priority = priority;}
+    public void setStatus(TaskStatus status) {this.status = status;}
+    public void setAssignedUser(User assignedUser) {this.assignedUser = assignedUser;}
+    public void setDependentTask(Task dependentTask) {this.dependentTask = dependentTask;}
+    public void setScheduledTime(LocalDateTime scheduledTime) {this.scheduledTime = scheduledTime;}
+    public void setCompletedTime(LocalDateTime completedTime) {this.completedTime = completedTime;}
+    public void setCreatedAt(LocalDateTime createdAt) {this.createdAt = createdAt;}
+    public void setUpdatedAt(LocalDateTime updatedAt) {this.updatedAt = updatedAt;}
     
     public enum TaskPriority {
         LOW, MEDIUM, HIGH, CRITICAL
