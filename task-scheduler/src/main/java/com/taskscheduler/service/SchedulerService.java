@@ -1,5 +1,6 @@
 package com.taskscheduler.service;
 
+import java.net.http.WebSocket;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -11,12 +12,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.taskscheduler.model.Task;
 import com.taskscheduler.repository.TaskRepository;
+import com.taskscheduler.websocket.WebSocketService;
 
 @Service
 public class SchedulerService {
     private final TaskService taskService;
     private final TaskRepository taskRepository;
     private final MetricsService metricsService;
+    private final WebSocketService webSocketService;
     
     private final PriorityBlockingQueue<Task> taskQueue = new PriorityBlockingQueue<>(
         11,
@@ -32,10 +35,32 @@ public class SchedulerService {
     private final Object threadLock = new Object();
 
     // Constructor
-    public SchedulerService(TaskService taskService, TaskRepository taskRepository, MetricsService metricsService) {
+    public SchedulerService(TaskService taskService, TaskRepository taskRepository, MetricsService metricsService, WebSocketService webSocketService) {
         this.taskService = taskService;
         this.taskRepository = taskRepository;
         this.metricsService = metricsService;
+        this.webSocketService = webSocketService;
+    }
+
+    @Transactional
+    public Task createTask(Task task) {
+        validateTask(task);
+
+        task.setStatus(Task.TaskStatus.PENDING);
+        task.setScheduledTime(LocalDateTime.now());
+        Task savedTask = taskRepository.save(task);
+        scheduleTask(savedTask);
+        webSocketService.notifyTaskUpdate(savedTask);
+        return savedTask;
+    }
+
+    private void validateTask(Task task) {
+        if (task.getName() == null || task.getName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Task name is required");
+        }
+        if (task.getPriority() == null) {
+            throw new IllegalArgumentException("Task priority is required");
+        }
     }
 
     @Scheduled(fixedRate = 1000) // Check every second

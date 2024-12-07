@@ -26,24 +26,10 @@ public class TaskService {
     private final ThreadPoolTaskExecutor taskExecutor;
     private final MetricsService metricsService;
     private final WebSocketService webSocketService;
-    @Lazy 
-    private final SchedulerService schedulerService;
     
     private final ConcurrentHashMap<Long, Thread> runningTasks = new ConcurrentHashMap<>();
 
-    @Transactional
-    public Task createTask(Task task) {
-        validateTask(task);
-        validatePythonFile(task.getPythonFilePath());
-
-        task.setStatus(Task.TaskStatus.PENDING);
-        task.setScheduledTime(LocalDateTime.now());
-        Task savedTask = taskRepository.save(task);
-        schedulerService.scheduleTask(savedTask);
-        webSocketService.notifyTaskUpdate(savedTask);
-        return savedTask;
-    }
-
+    
     @Transactional
     public void executeTask(Task task) {
 
@@ -83,6 +69,7 @@ public class TaskService {
             ProcessBuilder processBuilder = new ProcessBuilder("python", pythonFilePath);
             processBuilder.redirectErrorStream(true);
             process = processBuilder.start();
+            Long pid = process.pid();
             
             BufferedReader reader = new BufferedReader(
                 new InputStreamReader(process.getInputStream())
@@ -124,20 +111,20 @@ public class TaskService {
         return task;
     }
 
-    private void validatePythonFile(String pythonFilePath) {
-        if (pythonFilePath == null || pythonFilePath.trim().isEmpty()) {
-            throw new IllegalArgumentException("Python file path is required");
-        }
+    // private void validatePythonFile(String pythonFilePath) {
+    //     if (pythonFilePath == null || pythonFilePath.trim().isEmpty()) {
+    //         throw new IllegalArgumentException("Python file path is required");
+    //     }
 
-        File pythonFile = new File(pythonFilePath);
-        if (!pythonFile.exists() || !pythonFile.isFile()) {
-            throw new IllegalArgumentException("Python file does not exist: " + pythonFilePath);
-        }
+    //     File pythonFile = new File(pythonFilePath);
+    //     if (!pythonFile.exists() || !pythonFile.isFile()) {
+    //         throw new IllegalArgumentException("Python file does not exist: " + pythonFilePath);
+    //     }
         
-        if (!pythonFilePath.endsWith(".py")) {
-            throw new IllegalArgumentException("File must be a Python file (.py)");
-        }
-    }
+    //     if (!pythonFilePath.endsWith(".py")) {
+    //         throw new IllegalArgumentException("File must be a Python file (.py)");
+    //     }
+    // }
 
     public List<Task> getAllTasks() {
         return taskRepository.findAll();
@@ -179,12 +166,5 @@ public class TaskService {
         webSocketService.notifyTaskError(task.getId(), e.getMessage());
     }
 
-    private void validateTask(Task task) {
-        if (task.getName() == null || task.getName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Task name is required");
-        }
-        if (task.getPriority() == null) {
-            throw new IllegalArgumentException("Task priority is required");
-        }
-    }
+    
 }

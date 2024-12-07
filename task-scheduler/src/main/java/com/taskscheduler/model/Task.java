@@ -8,6 +8,8 @@ import java.time.LocalDateTime;
 @Entity
 @Builder
 @Table(name = "tasks")
+@NoArgsConstructor
+@AllArgsConstructor
 public class Task {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,6 +23,9 @@ public class Task {
 
     @Column(name = "threads_needed")
     private int threadsNeeded;
+
+    @Column(name = "pid")
+    private Long  pid;
 
     private String arguments;
     
@@ -52,8 +57,6 @@ public class Task {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
-    // Default constructor
-    public Task() {}
     
     public Long getId() {return id;}
     public String getName() {return name;}

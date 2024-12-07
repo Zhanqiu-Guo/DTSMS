@@ -12,10 +12,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TaskController {
     private final TaskService taskService;
+    private final SchedulerService schedulerService;
     
     @PostMapping
     public ResponseEntity<Task> createTask(@RequestBody Task task) {
-        return ResponseEntity.ok(taskService.createTask(task));
+        return ResponseEntity.ok(schedulerService.createTask(task));
     }
     
     @PutMapping("/{taskId}/status")
