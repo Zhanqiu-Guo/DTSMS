@@ -1,20 +1,26 @@
 package com.taskscheduler.service;
 
-import java.io.File;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.apache.commons.exec.CommandLine;
 import org.springframework.data.util.Pair;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.apache.commons.exec.CommandLine;
 
 import com.taskscheduler.model.Task;
 import com.taskscheduler.repository.TaskRepository;
@@ -34,133 +40,146 @@ public class TaskService {
 
     
     @Transactional
-    public void executeTask(Task task) {
+    public void executeTask(Task task, Runnable onComplete) {
 
-        taskExecutor.execute(() -> {
-            Thread currentThread = Thread.currentThread();
-            runningTasks.put(task.getId(), currentThread);
-            ExecutorService programExecutor = Executors.newFixedThreadPool(task.getThreadsNeeded());
-            
-            try {
-                task.setStatus(Task.TaskStatus.RUNNING);
-                taskRepository.save(task);
-                webSocketService.notifyTaskUpdate(task);
-                
-                Pair<Boolean, String> result = programExecutor.submit(() -> 
-                    executeCode(task)
-                ).get();
-                
-                if (!result.getFirst()) {
-                    throw new RuntimeException("Execution failed: " + result.getSecond());
-                }
-                
-                task.setStatus(Task.TaskStatus.COMPLETED);
-                task.setCompletedTime(LocalDateTime.now());
-                taskRepository.save(task);
-                
-                metricsService.recordTaskCompletion(task);
-                webSocketService.notifyTaskUpdate(task);
-            } catch (Exception e) {
-                handleTaskFailure(task, e);
-            } finally {
-                programExecutor.shutdown();
-                runningTasks.remove(task.getId());
-            }
-        });
-    }
-
-    @Transactional
-    public Pair<Boolean, String> executeCode(Task task) {
-        Process process = null;
-
-        CommandLine cmdLine = CommandLine.parse(task.getCommand());
-        String[] args = cmdLine.toStrings();
-
+    taskExecutor.execute(() -> {
+        Thread currentThread = Thread.currentThread();
+        runningTasks.put(task.getId(), currentThread);
+        ExecutorService programExecutor = Executors.newFixedThreadPool(task.getThreadsNeeded());
+        
         try {
-            ProcessBuilder processBuilder = new ProcessBuilder(args);
-            processBuilder.redirectErrorStream(true);
-            process = processBuilder.start();
-            Long pid = process.pid();
-            task.setPid(pid);
-            
-            BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream())
-            );
-            
-            StringBuilder output = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-            }
-            
-            int exitValue = process.waitFor();
-            boolean success = exitValue == 0;
+            task.setStatus(Task.TaskStatus.RUNNING);
+            taskRepository.save(task);
+            webSocketService.notifyTaskUpdate(task);
 
-            return Pair.of(success, output.toString());
-            
-        } catch (Exception e) {
-            return Pair.of(false, "Error: " + e.getMessage());
+            Pair<Boolean, String> result = programExecutor.submit(() -> 
+                executeCode(task)
+            ).get();
+
+            if (!result.getFirst()) {
+                throw new RuntimeException("Execution failed: " + result.getSecond());
+            }
+
+            task.setStatus(Task.TaskStatus.COMPLETED);
+            task.setCompletedTime(LocalDateTime.now());
+            taskRepository.save(task);
+
+            metricsService.recordTaskCompletion(task);
+            webSocketService.notifyTaskUpdate(task);
+
+        // Auto close buffer
+        } catch (InterruptedException | RuntimeException | ExecutionException e) {
+            handleTaskFailure(task, e);
         } finally {
-            if (process != null) {
-                process.destroy();
+            programExecutor.shutdown();
+            runningTasks.remove(task.getId());
+
+            // Release threads
+            if (onComplete != null) {
+                onComplete.run();
             }
         }
+    });
+}
+
+@Transactional
+public Pair<Boolean, String> executeCode(Task task) {
+    Process process = null;
+
+    // Construct command with ulimit
+    String commandWithUlimit = String.format("bash -c 'ulimit -u %d && %s'", task.getThreadsNeeded(), task.getCommand());
+    CommandLine cmdLine = CommandLine.parse(commandWithUlimit);
+    String[] args = cmdLine.toStrings();
+
+    // Create work folder: ../Tasks/timestamp
+    LocalDateTime createdAt = task.getCreatedAt();
+    String folderName = createdAt.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+    Path tasksRoot = Paths.get("../Tasks");
+    Path folderPath = tasksRoot.resolve(folderName);
+
+    try {
+        if (!Files.exists(tasksRoot)) {
+            Files.createDirectory(tasksRoot);
+        }
+        if (!Files.exists(folderPath)) {
+            Files.createDirectory(folderPath);
+        }
+    } catch (IOException e) {
+        return Pair.of(false, "Error creating task folder: " + e.getMessage());
+    }
+
+    try {
+        Path logFilePath = folderPath.resolve("output.log");
+        ProcessBuilder processBuilder = new ProcessBuilder(args);
+        processBuilder.directory(folderPath.toFile());
+        processBuilder.redirectErrorStream(true);
+        process = processBuilder.start();
+        task.setPid(process.pid());
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+             BufferedWriter logWriter = new BufferedWriter(new FileWriter(logFilePath.toFile()))) {
+
+            StringBuilder output = new StringBuilder();
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+                logWriter.write(line);
+                logWriter.newLine();
+
+                // Detect and terminate task on thread limit error
+                if (line.contains("Resource temporarily unavailable") || line.contains("Interrupted system call")) {
+                    process.destroy();
+                    logWriter.write("Error: Thread limit exceeded, task terminated.");
+                    logWriter.newLine();
+                    task.setStatus(Task.TaskStatus.FAILED);
+                    taskRepository.save(task);
+                    return Pair.of(false, "Error: Thread limit exceeded.");
+                }
+            }
+
+            int exitValue = process.waitFor();
+            boolean success = exitValue == 0;
+            task.setStatus(success ? Task.TaskStatus.COMPLETED : Task.TaskStatus.FAILED);
+            taskRepository.save(task);
+
+            return Pair.of(success, output.toString());
+        }
+
+    } catch (IOException | InterruptedException e) {
+        if (process != null) {
+            process.destroy();
+        }
+        task.setStatus(Task.TaskStatus.FAILED);
+        taskRepository.save(task);
+        return Pair.of(false, "Error: " + e.getMessage());
+    } finally {
+        if (process != null && process.isAlive()) {
+            process.destroy();
+        }
+    }
+}
+    public Task findTaskById(Long taskId) {
+        return taskRepository.findById(taskId)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found with id: " + taskId));
     }
 
     @Transactional
     public Task updateTaskStatus(Long taskId, Task.TaskStatus newStatus) {
-        Task task = taskRepository.findById(taskId)
-            .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+        Task task = findTaskById(taskId);
             
-        if (newStatus == Task.TaskStatus.PAUSED) {
-            pauseTask(task);
-        } else if (newStatus == Task.TaskStatus.RUNNING) {
-            resumeTask(task);
-        } else if (newStatus == Task.TaskStatus.CANCELLED) {
+        if (newStatus == Task.TaskStatus.CANCELLED) {
             cancelTask(task);
         }
         
         return task;
     }
 
-    // private void validatePythonFile(String pythonFilePath) {
-    //     if (pythonFilePath == null || pythonFilePath.trim().isEmpty()) {
-    //         throw new IllegalArgumentException("Python file path is required");
-    //     }
-
-    //     File pythonFile = new File(pythonFilePath);
-    //     if (!pythonFile.exists() || !pythonFile.isFile()) {
-    //         throw new IllegalArgumentException("Python file does not exist: " + pythonFilePath);
-    //     }
-        
-    //     if (!pythonFilePath.endsWith(".py")) {
-    //         throw new IllegalArgumentException("File must be a Python file (.py)");
-    //     }
-    // }
-
     public List<Task> getAllTasks() {
         return taskRepository.findAll();
     }
 
-    private void pauseTask(Task task) {
-        Thread taskThread = runningTasks.get(task.getId());
-        if (taskThread != null) {
-            taskThread.interrupt();
-        }
-        task.setStatus(Task.TaskStatus.PAUSED);
-        taskRepository.save(task);
-        webSocketService.notifyTaskUpdate(task);
-    }
-
-    private void resumeTask(Task task) {
-        if (task.getStatus() == Task.TaskStatus.PAUSED) {
-            task.setStatus(Task.TaskStatus.PENDING);
-            taskRepository.save(task);
-            executeTask(task);
-        }
-    }
-
-    private void cancelTask(Task task) {
+    public void cancelTask(Task task) {
         Thread taskThread = runningTasks.get(task.getId());
         if (taskThread != null) {
             taskThread.interrupt();
@@ -168,6 +187,47 @@ public class TaskService {
         task.setStatus(Task.TaskStatus.CANCELLED);
         taskRepository.save(task);
         webSocketService.notifyTaskUpdate(task);
+    }
+
+    public void deleteTask(Task task) {
+        Thread taskThread = runningTasks.get(task.getId());
+        if (taskThread != null) {
+            taskThread.interrupt();
+            runningTasks.remove(task.getId());
+        }
+
+        deleteTaskFolder(task);
+
+        taskRepository.deleteById(task.getId());
+    }
+
+    private void deleteTaskFolder(Task task) {
+        if (task.getCreatedAt() == null) {
+            return;
+        }
+        try {
+            // Retrieve task folder
+            LocalDateTime createdAt = task.getCreatedAt();
+            String folderName = createdAt.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+            Path tasksRoot = Paths.get("../Tasks");
+            Path folderPath = tasksRoot.resolve(folderName);
+    
+            // rm -rf task folder
+            if (Files.exists(folderPath)) {
+                Files.walk(folderPath)
+                     .sorted((a, b) -> b.compareTo(a))
+                     .forEach(path -> {
+                         try {
+                             Files.delete(path);
+                         } catch (IOException e) {
+                             System.err.println("Failed to delete file: " + path + ", error: " + e.getMessage());
+                         }
+                     });
+                System.out.println("Deleted folder: " + folderPath);
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to delete task folder: " + e.getMessage());
+        }
     }
 
     private void handleTaskFailure(Task task, Exception e) {

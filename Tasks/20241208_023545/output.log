@@ -1,0 +1,1 @@
+bash: line 1: ulimit -u 2 && echo "1: command not found

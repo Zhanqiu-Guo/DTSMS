@@ -105,6 +105,6 @@ public class Task {
     }
     
     public enum TaskStatus {
-        PENDING, RUNNING, COMPLETED, FAILED, CANCELLED, PAUSED, ARCHIVED
+        PENDING, RUNNING, COMPLETED, FAILED, CANCELLED
     }
 }

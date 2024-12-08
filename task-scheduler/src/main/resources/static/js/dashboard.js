@@ -52,7 +52,7 @@ class DashboardMetrics {
 
     updateChart(metrics) {
         const timestamp = new Date().toLocaleTimeString();
-        
+
         this.chart.data.labels.push(timestamp);
         this.chart.data.datasets[0].data.push(metrics.activeTasks);
         this.chart.data.datasets[1].data.push(metrics.cpuUsage);
@@ -66,5 +66,39 @@ class DashboardMetrics {
     }
 }
 
+async function loadTasks() {
+    try {
+        const response = await fetch('/api/tasks', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${taskManager.getAuthToken()}`
+            }
+        });
+
+        if (response.ok) {
+            const tasks = await response.json();
+            const tasksList = document.getElementById('activeTasksList');
+            tasksList.innerHTML = '';
+            tasks.forEach(task => {
+                taskManager.updateTaskUI(task); // 调用更新 UI 方法
+            });
+        } else {
+            console.error("Failed to load tasks");
+        }
+    } catch (error) {
+        console.error("Error fetching tasks:", error);
+    }
+}
+
+// function startAutoRefreshTasks() {
+//     loadTasks();
+//     setInterval(loadTasks, 5000); // refresh per 5s
+// }
+
 // Initialize Dashboard
-const dashboard = new DashboardMetrics();
+window.onload = function () {
+    const dashboard = new DashboardMetrics();
+    loadTasks();
+    setInterval(loadTasks, 1000);
+};

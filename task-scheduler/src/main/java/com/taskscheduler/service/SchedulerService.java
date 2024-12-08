@@ -1,6 +1,5 @@
 package com.taskscheduler.service;
 
-import java.net.http.WebSocket;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -44,6 +43,10 @@ public class SchedulerService {
 
     @Transactional
     public Task createTask(Task task) {
+        int MAX_THREADS = Runtime.getRuntime().availableProcessors();
+        if (task.getThreadsNeeded() > MAX_THREADS) {
+            throw new IllegalArgumentException("Task requires too many threads. Maximum allowed: " + MAX_THREADS);
+        }
         validateTask(task);
 
         task.setStatus(Task.TaskStatus.PENDING);
@@ -102,28 +105,28 @@ public class SchedulerService {
         }
     }
 
-    //TODO: Check if can be removed
-    @Scheduled(cron = "0 0 0 * * *") // Daily at midnight
-    @Transactional
-    public void archiveOldTasks() {
-        LocalDateTime threshold = LocalDateTime.now().minusDays(30);
-        List<Task> oldCompletedTasks = taskRepository.findByStatusAndCompletedTimeBefore(
-            Task.TaskStatus.COMPLETED,
-            threshold
-        );
+    // //TODO: Check if can be removed
+    // @Scheduled(cron = "0 0 0 * * *") // Daily at midnight
+    // @Transactional
+    // public void archiveOldTasks() {
+    //     LocalDateTime threshold = LocalDateTime.now().minusDays(30);
+    //     List<Task> oldCompletedTasks = taskRepository.findByStatusAndCompletedTimeBefore(
+    //         Task.TaskStatus.COMPLETED,
+    //         threshold
+    //     );
         
-        // Archive tasks (could move to archive table or external storage)
-        for (Task task : oldCompletedTasks) {
-            task.setStatus(Task.TaskStatus.ARCHIVED);
-            taskRepository.save(task);
-        }
-    }
+    //     // Archive tasks (could move to archive table or external storage)
+    //     for (Task task : oldCompletedTasks) {
+    //         task.setStatus(Task.TaskStatus.ARCHIVED);
+    //         taskRepository.save(task);
+    //     }
+    // }
 
     private void processPendingTasks() {
         while (!taskQueue.isEmpty()) {
             Task task = taskQueue.peek();
             if (task == null) break;
-
+    
             synchronized (threadLock) {
                 if (task.getThreadsNeeded() <= availableThreads) {
                     taskQueue.poll();
@@ -134,9 +137,18 @@ public class SchedulerService {
                 }
             }
             if (shouldExecuteTask(task)) {
-                taskService.executeTask(task);
+                taskService.executeTask(task, () -> onTaskCompletion(task));
             }
         }
+    }
+
+    // Add back threads
+    private void onTaskCompletion(Task task) {
+        synchronized (threadLock) {
+            availableThreads += task.getThreadsNeeded();
+        }
+    
+        processPendingTasks();
     }
 
     private boolean shouldScheduleTask(Task task) {
@@ -167,27 +179,27 @@ public class SchedulerService {
         return taskRepository.findByStatus(Task.TaskStatus.PENDING);
     }
 
-    public void cancelScheduledTask(Long taskId) {
-        taskQueue.removeIf(task -> task.getId().equals(taskId));
-        Task task = taskRepository.findById(taskId)
-            .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+    // public void cancelScheduledTask(Long taskId) {
+    //     taskQueue.removeIf(task -> task.getId().equals(taskId));
+    //     Task task = taskRepository.findById(taskId)
+    //         .orElseThrow(() -> new IllegalArgumentException("Task not found"));
             
-        if (task.getStatus() == Task.TaskStatus.PENDING) {
-            task.setStatus(Task.TaskStatus.CANCELLED);
-            taskRepository.save(task);
-        }
-    }
+    //     if (task.getStatus() == Task.TaskStatus.PENDING) {
+    //         task.setStatus(Task.TaskStatus.CANCELLED);
+    //         taskRepository.save(task);
+    //     }
+    // }
 
-    public void rescheduleTask(Long taskId, LocalDateTime newScheduledTime) {
-        Task task = taskRepository.findById(taskId)
-            .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+    // public void rescheduleTask(Long taskId, LocalDateTime newScheduledTime) {
+    //     Task task = taskRepository.findById(taskId)
+    //         .orElseThrow(() -> new IllegalArgumentException("Task not found"));
             
-        if (task.getStatus() != Task.TaskStatus.COMPLETED && 
-            task.getStatus() != Task.TaskStatus.CANCELLED) {
-            task.setScheduledTime(newScheduledTime);
-            task.setStatus(Task.TaskStatus.PENDING);
-            taskRepository.save(task);
-            taskQueue.offer(task);
-        }
-    }
+    //     if (task.getStatus() != Task.TaskStatus.COMPLETED && 
+    //         task.getStatus() != Task.TaskStatus.CANCELLED) {
+    //         task.setScheduledTime(newScheduledTime);
+    //         task.setStatus(Task.TaskStatus.PENDING);
+    //         taskRepository.save(task);
+    //         taskQueue.offer(task);
+    //     }
+    // }
 }

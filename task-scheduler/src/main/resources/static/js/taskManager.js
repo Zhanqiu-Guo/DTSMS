@@ -1,6 +1,6 @@
 class TaskManager {
     constructor() {
-        this.socket = new WebSocket('ws://localhost:8080/ws/tasks');
+        this.socket = new WebSocket('ws://localhost:8080/ws/tasks'); // connect web
         this.setupWebSocket();
         this.setupEventListeners();
     }
@@ -40,9 +40,59 @@ class TaskManager {
             if (response.ok) {
                 const task = await response.json();
                 this.updateTaskUI(task);
+            } else {
+                // Handle error from backend
+                const errorMessage = await response.text();
+                alert(`Failed to create task: ${errorMessage}`);
             }
         } catch (error) {
             console.error('Error creating task:', error);
+            alert('An unexpected error occurred while creating the task.');
+        }
+    }
+
+    // Delete task by ID
+    async deleteTask(taskId) {
+        try {
+            const response = await fetch(`/api/tasks/${taskId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.getAuthToken()}`
+                }
+            });
+
+            if (response.ok) {
+                document.getElementById(`task-${taskId}`).remove();
+                console.log(`Task ${taskId} deleted successfully.`);
+            } else {
+                console.error('Failed to delete task:', response.statusText);
+            }
+        } catch (error) {
+            console.error('Error deleting task:', error);
+        }
+    }
+
+    // Cancel task by ID
+    async cancelTask(taskId) {
+        try {
+            const response = await fetch(`/api/tasks/${taskId}/status?status=CANCELLED`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.getAuthToken()}`
+                }
+            });
+
+            if (response.ok) {
+                const updatedTask = await response.json();
+                this.updateTaskUI(updatedTask);
+                console.log(`Task ${taskId} cancelled successfully.`);
+            } else {
+                console.error('Failed to cancel task:', response.statusText);
+            }
+        } catch (error) {
+            console.error('Error cancelling task:', error);
         }
     }
 
@@ -52,6 +102,13 @@ class TaskManager {
         taskElement.id = `task-${task.id}`;
         taskElement.className = `task-item p-4 border rounded ${this.getPriorityClass(task.priority)}`;
 
+        const actionButtonText = (task.status === 'COMPLETED' || task.status === 'CANCELLED')
+            ? 'Delete'
+            : 'Cancel';
+        const actionButtonOnClick = (task.status === 'COMPLETED' || task.status === 'CANCELLED')
+            ? `taskManager.deleteTask(${task.id})`
+            : `taskManager.cancelTask(${task.id})`;
+
         taskElement.innerHTML = `
             <div class="flex justify-between items-center">
                 <h3 class="font-bold">${task.name}</h3>
@@ -60,11 +117,8 @@ class TaskManager {
                 </span>
             </div>
             <div class="task-controls mt-2">
-                <button onclick="taskManager.toggleTaskStatus(${task.id})" class="btn-control">
-                    ${task.status === 'RUNNING' ? 'Pause' : 'Resume'}
-                </button>
-                <button onclick="taskManager.cancelTask(${task.id})" class="btn-cancel">
-                    Cancel
+                <button onclick="${actionButtonOnClick}" class="btn-cancel">
+                    ${actionButtonText}
                 </button>
             </div>
         `;
@@ -94,7 +148,6 @@ class TaskManager {
             COMPLETED: 'bg-blue-500',
             FAILED: 'bg-red-500',
             CANCELLED: 'bg-yellow-500',
-            PAUSED: 'bg-purple-500'
         };
         return classes[status] || classes.PENDING;
     }
