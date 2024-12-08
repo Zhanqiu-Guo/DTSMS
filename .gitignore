@@ -5,3 +5,4 @@ gradle
 task-scheduler/target/
 .idea/
 /commands.md
+Tasks
