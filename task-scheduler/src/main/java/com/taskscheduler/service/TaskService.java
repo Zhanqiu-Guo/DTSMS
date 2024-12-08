@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -37,13 +39,16 @@ public class TaskService {
         taskExecutor.execute(() -> {
             Thread currentThread = Thread.currentThread();
             runningTasks.put(task.getId(), currentThread);
+            ExecutorService programExecutor = Executors.newFixedThreadPool(task.getThreadsNeeded());
             
             try {
                 task.setStatus(Task.TaskStatus.RUNNING);
                 taskRepository.save(task);
                 webSocketService.notifyTaskUpdate(task);
                 
-                Pair<Boolean, String> result = executeCode(task);
+                Pair<Boolean, String> result = programExecutor.submit(() -> 
+                    executeCode(task)
+                ).get();
                 
                 if (!result.getFirst()) {
                     throw new RuntimeException("Execution failed: " + result.getSecond());
@@ -58,6 +63,7 @@ public class TaskService {
             } catch (Exception e) {
                 handleTaskFailure(task, e);
             } finally {
+                programExecutor.shutdown();
                 runningTasks.remove(task.getId());
             }
         });
@@ -69,7 +75,7 @@ public class TaskService {
 
         CommandLine cmdLine = CommandLine.parse(task.getCommand());
         String[] args = cmdLine.toStrings();
-        
+
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(args);
             processBuilder.redirectErrorStream(true);
@@ -169,8 +175,7 @@ public class TaskService {
         taskRepository.save(task);
         metricsService.recordTaskFailure(task);
         webSocketService.notifyTaskUpdate(task);
+        System.out.println("Error Message: " + e.getMessage());
         webSocketService.notifyTaskError(task.getId(), e.getMessage());
     }
-
-    
 }
