@@ -70,7 +70,7 @@ public class Task {
     
     public Long getId() {return id;}
     public String getName() {return name;}
-    public Long setPid() {return pid;}
+    public Long getPid() {return pid;}
     public String getCommand() {return command;}
     public int getThreadsNeeded() {return threadsNeeded;}
     public String getArguments() {return arguments;}

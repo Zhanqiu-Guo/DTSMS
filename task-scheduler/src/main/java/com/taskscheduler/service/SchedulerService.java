@@ -88,22 +88,22 @@ public class SchedulerService {
         taskQueue.offer(task);
     }
 
-    @Scheduled(fixedRate = 300000) // Every 5 minutes
-    @Transactional
-    public void cleanupStuckTasks() {
-        LocalDateTime threshold = LocalDateTime.now().minusHours(1);
+    // @Scheduled(fixedRate = 300000) // Every 5 minutes
+    // @Transactional
+    // public void cleanupStuckTasks() {
+    //     LocalDateTime threshold = LocalDateTime.now().minusHours(1);
         
-        List<Task> stuckTasks = taskRepository.findByStatusAndScheduledTimeBefore(
-            Task.TaskStatus.RUNNING,
-            threshold
-        );
+    //     List<Task> stuckTasks = taskRepository.findByStatusAndScheduledTimeBefore(
+    //         Task.TaskStatus.RUNNING,
+    //         threshold
+    //     );
         
-        for (Task task : stuckTasks) {
-            task.setStatus(Task.TaskStatus.FAILED);
-            taskRepository.save(task);
-            metricsService.recordTaskFailure(task);
-        }
-    }
+    //     for (Task task : stuckTasks) {
+    //         task.setStatus(Task.TaskStatus.FAILED);
+    //         taskRepository.save(task);
+    //         // metricsService.recordTaskFailure(task);
+    //     }
+    // }
 
     // //TODO: Check if can be removed
     // @Scheduled(cron = "0 0 0 * * *") // Daily at midnight

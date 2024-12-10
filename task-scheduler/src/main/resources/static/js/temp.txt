@@ -1,3 +1,16 @@
+class DashboardMetrics {
+    constructor() {
+        this.startMetricsPolling();
+    }
+
+    startMetricsPolling() {
+        setInterval(() => {
+            console.log("Refreshing metrics table...");
+            loadTaskMetrics();
+        }, 5000); // 5s per sec
+    }
+}
+
 async function loadTasks() {
     try {
         const response = await fetch('/api/tasks', {
@@ -11,10 +24,9 @@ async function loadTasks() {
         if (response.ok) {
             const tasks = await response.json();
             const tasksList = document.getElementById('activeTasksList');
-            tasksList.innerHTML = ''; // 清空任务列表
-
+            tasksList.innerHTML = '';
             tasks.forEach(task => {
-                taskManager.updateTaskUI(task); // 调用 TaskManager 来更新 UI
+                taskManager.updateTaskUI(task);
             });
         } else {
             console.error("Failed to load tasks");
@@ -67,6 +79,9 @@ async function loadTaskMetrics() {
 }
 
 window.onload = function () {
+    const dashboard = new DashboardMetrics();
+    const taskManager = new TaskManager();
+
     loadTasks();
     loadTaskMetrics();
 

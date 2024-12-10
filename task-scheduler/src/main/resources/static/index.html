@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Scheduler Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="css/styles.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
@@ -49,8 +49,26 @@
 
             <!-- System Metrics Panel -->
             <div class="bg-white p-6 rounded-lg shadow-lg">
-                <h2 class="text-2xl font-bold mb-4">System Metrics</h2>
-                <canvas id="metricsChart"></canvas>
+                <h2 class="text-2xl font-bold mb-4 text-gray-700">System Metrics Chart</h2>
+                <div class="overflow-x-auto">
+                    <table class="table-auto w-full">
+                        <thead class="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                            <tr>
+                                <th class="py-3 px-6 text-center">Task ID</th>
+                                <th class="py-3 px-6 text-center">Task Name</th>
+                                <th class="py-3 px-6 text-center">CPU Usage (%)</th>
+                                <th class="py-3 px-6 text-center">Memory Usage (MB)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taskMetricsTable" class="text-gray-600 text-sm font-light">
+                            <tr>
+                                <td colspan="4" class="py-4 px-6 text-center text-gray-400">
+                                    Loading system metrics...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
