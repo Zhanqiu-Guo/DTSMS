@@ -1,10 +1,1 @@
 rootProject.name = 'DTSMS'
-include 'scheduler-common'
-include 'scheduler-core'
-include 'scheduler-executor'
-include 'scheduler-monitor'
-
-project(':scheduler-core').projectDir = file('scheduler-core')
-project(':scheduler-executor').projectDir = file('scheduler-executor')
-project(':scheduler-monitor').projectDir = file('scheduler-monitor')
-project(':scheduler-common').projectDir = file('scheduler-common')
