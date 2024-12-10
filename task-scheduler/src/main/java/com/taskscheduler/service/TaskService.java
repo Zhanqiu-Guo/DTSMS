@@ -40,7 +40,7 @@ public class TaskService {
     
     private final ConcurrentHashMap<Long, Thread> runningTasks = new ConcurrentHashMap<>();
 
-    
+    // Running task and check it's result
     @Transactional
     public void executeTask(Task task, Runnable onComplete) {
         taskExecutor.execute(() -> {
@@ -133,6 +133,7 @@ public class TaskService {
                 metricsService.updateMetricsForTask(task.getId());
             }, 0, 1, TimeUnit.SECONDS);
 
+            // Save stdout&stderr to a new file
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 BufferedWriter logWriter = new BufferedWriter(new FileWriter(logFilePath.toFile()))) {
 
@@ -209,10 +210,12 @@ public class TaskService {
         }
         task.setStatus(Task.TaskStatus.CANCELLED);
         taskRepository.save(task);
+        // Delete task from DB
         metricsService.deleteTaskMetrics(task.getId());
         webSocketService.notifyTaskUpdate(task);
     }
 
+    // Delete from Queue and remove folder
     public void deleteTask(Task task) {
         Thread taskThread = runningTasks.get(task.getId());
         if (taskThread != null) {
@@ -259,7 +262,6 @@ public class TaskService {
         taskRepository.save(task);
         metricsService.deleteTaskMetrics(task.getId());
         webSocketService.notifyTaskUpdate(task);
-        System.out.println("Error Message: " + e.getMessage());
         webSocketService.notifyTaskError(task.getId(), e.getMessage());
     }
 }

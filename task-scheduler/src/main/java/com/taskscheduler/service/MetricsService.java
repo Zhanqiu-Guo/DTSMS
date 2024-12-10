@@ -19,13 +19,13 @@ import oshi.software.os.OperatingSystem;
 @RequiredArgsConstructor
 public class MetricsService {
 
-    private static final Logger logger = LoggerFactory.getLogger(MetricsService.class); // debug
+    private static final Logger logger = LoggerFactory.getLogger(MetricsService.class); // debug logger
     private final ProcessMetricsRepository processMetricsRepository;
 
     private final SystemInfo systemInfo = new SystemInfo();
     private final OperatingSystem os = systemInfo.getOperatingSystem();
 
-    // Collect metrics for parent and child processes
+    // Collect metrics for parent and child
     public void collectMetricsForTask(Long taskId, Long pid, String taskName) {
         if (pid == null || pid <= 0) {
             logger.debug("Invalid PID: " + pid);
@@ -52,7 +52,8 @@ public class MetricsService {
             saveProcessMetrics(taskId, taskId, (long) childProcess.getProcessID(), pid, childProcess, childProcess.getName());
         }
     }
-
+    
+    // Update current exist Task
     public void updateMetricsForTask(Long parentTaskId) {
         if (parentTaskId == null || parentTaskId <= 0) {
             return;
@@ -84,6 +85,7 @@ public class MetricsService {
         return processMetricsRepository.findAll();
     }
 
+    // Save process to DB
     private void saveProcessMetrics(Long taskId, Long parentTaskId, Long pid, Long parentPid, OSProcess process, String processName) {
         
         if (process == null) return;

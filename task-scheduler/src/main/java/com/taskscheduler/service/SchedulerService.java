@@ -41,14 +41,21 @@ public class SchedulerService {
         this.webSocketService = webSocketService;
     }
 
+    // Create and save task
     @Transactional
     public Task createTask(Task task) {
+        
+        // Check thread and task
         int MAX_THREADS = Runtime.getRuntime().availableProcessors();
         if (task.getThreadsNeeded() > MAX_THREADS) {
             throw new IllegalArgumentException("Task requires too many threads. Maximum allowed: " + MAX_THREADS);
         }
+        else if (task.getThreadsNeeded() < 1) {
+            throw new IllegalArgumentException("Task should use more than 1 thread!");
+        }
         validateTask(task);
 
+        // Task is pending
         task.setStatus(Task.TaskStatus.PENDING);
         task.setScheduledTime(LocalDateTime.now());
         Task savedTask = taskRepository.save(task);
@@ -76,7 +83,6 @@ public class SchedulerService {
                 taskQueue.offer(task);
             }
         }
-
         processPendingTasks();
     }
 
@@ -87,40 +93,6 @@ public class SchedulerService {
         }
         taskQueue.offer(task);
     }
-
-    // @Scheduled(fixedRate = 300000) // Every 5 minutes
-    // @Transactional
-    // public void cleanupStuckTasks() {
-    //     LocalDateTime threshold = LocalDateTime.now().minusHours(1);
-        
-    //     List<Task> stuckTasks = taskRepository.findByStatusAndScheduledTimeBefore(
-    //         Task.TaskStatus.RUNNING,
-    //         threshold
-    //     );
-        
-    //     for (Task task : stuckTasks) {
-    //         task.setStatus(Task.TaskStatus.FAILED);
-    //         taskRepository.save(task);
-    //         // metricsService.recordTaskFailure(task);
-    //     }
-    // }
-
-    // //TODO: Check if can be removed
-    // @Scheduled(cron = "0 0 0 * * *") // Daily at midnight
-    // @Transactional
-    // public void archiveOldTasks() {
-    //     LocalDateTime threshold = LocalDateTime.now().minusDays(30);
-    //     List<Task> oldCompletedTasks = taskRepository.findByStatusAndCompletedTimeBefore(
-    //         Task.TaskStatus.COMPLETED,
-    //         threshold
-    //     );
-        
-    //     // Archive tasks (could move to archive table or external storage)
-    //     for (Task task : oldCompletedTasks) {
-    //         task.setStatus(Task.TaskStatus.ARCHIVED);
-    //         taskRepository.save(task);
-    //     }
-    // }
 
     private void processPendingTasks() {
         while (!taskQueue.isEmpty()) {
@@ -178,28 +150,4 @@ public class SchedulerService {
     public List<Task> getScheduledTasks() {
         return taskRepository.findByStatus(Task.TaskStatus.PENDING);
     }
-
-    // public void cancelScheduledTask(Long taskId) {
-    //     taskQueue.removeIf(task -> task.getId().equals(taskId));
-    //     Task task = taskRepository.findById(taskId)
-    //         .orElseThrow(() -> new IllegalArgumentException("Task not found"));
-            
-    //     if (task.getStatus() == Task.TaskStatus.PENDING) {
-    //         task.setStatus(Task.TaskStatus.CANCELLED);
-    //         taskRepository.save(task);
-    //     }
-    // }
-
-    // public void rescheduleTask(Long taskId, LocalDateTime newScheduledTime) {
-    //     Task task = taskRepository.findById(taskId)
-    //         .orElseThrow(() -> new IllegalArgumentException("Task not found"));
-            
-    //     if (task.getStatus() != Task.TaskStatus.COMPLETED && 
-    //         task.getStatus() != Task.TaskStatus.CANCELLED) {
-    //         task.setScheduledTime(newScheduledTime);
-    //         task.setStatus(Task.TaskStatus.PENDING);
-    //         taskRepository.save(task);
-    //         taskQueue.offer(task);
-    //     }
-    // }
 }

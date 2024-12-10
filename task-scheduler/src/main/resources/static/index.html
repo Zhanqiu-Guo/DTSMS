@@ -70,11 +70,19 @@
                     </table>
                 </div>
             </div>
+            <!-- WebSocket Update -->
+            <div id="wsUpdates" class="bg-white p-6 rounded-lg shadow-lg mt-4">
+                <h2 class="text-2xl font-bold mb-4 text-gray-700">WebSocket Updates</h2>
+                <p class="text-sm text-gray-500 mb-2">provided more details</p>
+                <ul id="taskUpdatesList" class="list-disc pl-5 text-gray-600"></ul>
+            </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/taskManager.js"></script>
     <script src="js/dashboard.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
 </body>
 </html>

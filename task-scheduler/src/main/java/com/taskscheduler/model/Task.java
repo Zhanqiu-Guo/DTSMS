@@ -18,13 +18,11 @@ public class Task {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "command")
     private String command;
 
     @Column(name = "threads_needed")
     private int threadsNeeded;
 
-    @Column(name = "pid")
     private Long  pid;
 
     private String arguments;
