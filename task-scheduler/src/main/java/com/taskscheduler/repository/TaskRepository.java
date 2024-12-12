@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import com.taskscheduler.model.Task;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
-    List<Task> findByAssignedUser_Id(Long userId);
     List<Task> findByStatus(Task.TaskStatus status);
     
     @Query("SELECT t FROM Task t WHERE t.status = 'PENDING' AND " +

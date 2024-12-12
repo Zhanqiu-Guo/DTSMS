@@ -1,8 +1,24 @@
 package com.taskscheduler.model;
 
-import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Entity
@@ -34,10 +50,6 @@ public class Task {
 
     @Enumerated(EnumType.STRING)
     private TaskStatus status;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "assigned_user_id")
-    private User assignedUser;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dependent_task_id")
@@ -75,7 +87,6 @@ public class Task {
     public String getDescription() {return description;}
     public TaskPriority getPriority() {return priority;}
     public TaskStatus getStatus() {return status;}
-    public User getAssignedUser() {return assignedUser;}
     public Task getDependentTask() {return dependentTask;}
     public LocalDateTime getScheduledTime() {return scheduledTime;}
     public LocalDateTime getCompletedTime() {return completedTime;}
@@ -91,7 +102,6 @@ public class Task {
     public void setDescription(String description) {this.description = description;}
     public void setPriority(TaskPriority priority) {this.priority = priority;}
     public void setStatus(TaskStatus status) {this.status = status;}
-    public void setAssignedUser(User assignedUser) {this.assignedUser = assignedUser;}
     public void setDependentTask(Task dependentTask) {this.dependentTask = dependentTask;}
     public void setScheduledTime(LocalDateTime scheduledTime) {this.scheduledTime = scheduledTime;}
     public void setCompletedTime(LocalDateTime completedTime) {this.completedTime = completedTime;}
